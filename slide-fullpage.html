@@ -1,0 +1,100 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>{{ slide_filename }}</title>
+
+<style type="text/css">
+html {
+    overflow: hidden;
+}
+body {
+    margin: 0;
+    padding: 0;
+}
+div#view {
+    position: absolute;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    background-color: black;
+    color: white;
+    padding: 10px;
+}
+
+</style>
+
+<div id="view"></div>
+
+<script type="text/javascript" src="{{ url_for('static', filename='jquery.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='openseadragon.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='openseadragon-scalebar.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='openseadragonScreenshot.min.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='openseadragonScreenshot.js') }}"></script>
+
+<script type="text/javascript">
+$(function() {
+    var viewer = new OpenSeadragon({
+        id: "view",
+        tileSources: "{{ slide_url }}",
+        prefixUrl: "{{ url_for('static', filename='images/') }}",
+        showNavigator: true,
+        navigatorRotate: false,
+        showRotationControl: false,
+        showHomeControl: false,
+        showFullPageControl: false,
+        showZoomControl: false,
+        animationTime: 0.5,
+        blendTime: 0.1,
+        constrainDuringPan: true,
+        maxZoomPixelRatio: 2,
+        minZoomImageRatio: 1,
+        visibilityRatio: 1,
+        zoomPerScroll: 2,
+        timeout: 120000,
+        crossOriginPolicy: "Anonymous"
+    });
+
+    var mpp = parseFloat("{{ slide_mpp }}");
+    viewer.scalebar({
+        pixelsPerMeter: mpp ? (1e6 / mpp) : 0,
+        xOffset: 10,
+        yOffset: 10,
+        barThickness: 3,
+        color: '#555555',
+        fontColor: '#333333',
+        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    });
+
+    
+    function sendGazeData(x, y, zoom) {
+        fetch('/gaze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ x: x, y: y, zoom: zoom })
+        })
+        .then(response => response.json())
+        .then(data => console.log(data));
+    }
+
+    // Event listener for mouse move
+    viewer.addHandler('canvas-hover', function(event) {
+        const viewportPoint = viewer.viewport.pointFromPixel(event.position);
+        const imagePoint = viewer.viewport.viewportToImageCoordinates(viewportPoint);
+        const zoom = viewer.viewport.getZoom();
+
+        console.log(`Viewport Coordinates: ${viewportPoint.x}, ${viewportPoint.y}`);
+        console.log(`Image Coordinates: ${imagePoint.x}, ${imagePoint.y}`);
+        console.log(`Zoom Level: ${zoom}`);
+
+        // Send coordinates to the server
+        sendGazeData(imagePoint.x, imagePoint.y, zoom);
+
+<!--    viewer.screenshot({-->
+<!--        showOptions: true, // Default is false-->
+<!--        keyboardShortcut: 'p', // Default is null-->
+<!--        showScreenshotControl: true // Default is true-->
+
+<!--    });-->
+});
+</script>
