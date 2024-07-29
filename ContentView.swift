@@ -1,10 +1,3 @@
-//
-//  ContentView.swift
-//  Webview
-//
-//  Created by Jai Prakash Veerla on 4/16/24.
-//
-
 import SwiftUI
 import RealityKit
 import RealityKitContent
@@ -22,8 +15,6 @@ struct ContentView: View {
     @State private var takeScreenshot = false
     @State private var capturedImage: UIImage = UIImage()
     @State private var showingCapturedImageSheet = false
-    //    @State private var rootIP = "http://172.20.10.3:5001"
-    //    @State var webViewURL = URL(string: "http://172.20.10.3:5001/brain/GBM/TCGA-02-0004-01Z-00-DX1.d8189fdc-c669-48d5-bc9e-8ddf104caff6.svs")!
     @State private var rootIP = "http://127.0.0.1:5001"
     @State var webViewURL = URL(string: "http://127.0.0.1:5001/brain/GBM/TCGA-02-0004-01Z-00-DX1.d8189fdc-c669-48d5-bc9e-8ddf104caff6.svs")!
     @State var selection: Tab = Tab.home
@@ -67,7 +58,7 @@ struct ContentView: View {
     }
     
     func getsearch() {
-        let apiURL = rootIP+"/search" + webViewURL.path
+        let apiURL = rootIP + "/search" + webViewURL.path
         print(apiURL)
         openWindow(id: "SecondWindow")
         fetchStringsFromAPI(apiURL: apiURL) { strings, error in
@@ -83,7 +74,7 @@ struct ContentView: View {
     }
     
     func getDisplayImages(path: String) {
-        let apiURL = rootIP+"/files/"+path
+        let apiURL = rootIP + "/files/" + path
         print(apiURL)
         fetchStringsFromAPI(apiURL: apiURL) { strings, error in
             if let error = error {
@@ -115,50 +106,19 @@ struct ContentView: View {
                     .frame(width: geometry.size.width * 0.25)
                     .background(Color.gray)
                     // Right side (75%)
-                    //                    ScrollView(.vertical, showsIndicators: true) {
-                    //                        VStack {
-                    //                            ForEach(displayImages, id: \.self) { imageUrl in
-                    //                                Button(action: {
-                    //                                    self.webViewURL = URL(string: "\(rootIP)\(imageUrl)")!
-                    //                                    self.selection = Tab.viwer
-                    //                                }, label: {
-                    //                                    AsyncImage(url: URL(string: "https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1")) { image in
-                    //                                        image
-                    //                                            .resizable()
-                    //                                            .scaledToFit()
-                    //                                            .frame(height: 150)
-                    //                                    } placeholder: {
-                    //                                        // Placeholder content while the image is loading
-                    //                                        ProgressView()
-                    //                                    }
-                    //                                    let components = imageUrl.components(separatedBy: "/")
-                    //                                    if let lastComponent = components.last {
-                    //                                        Text(lastComponent)
-                    //                                            .padding(.vertical, 5)
-                    //                                            .foregroundColor(.white)
-                    //                                    }
-                    //
-                    //                                })
-                    //                            }
-                    //                            .frame(width: geometry.size.width * 0.75)
-                    //                        }
-                    //                    }
                     List {
                         ForEach(displayImages, id: \.self) { imageUrl in
                             Button(action: {
                                 self.webViewURL = URL(string: "\(rootIP)\(imageUrl)")!
                                 self.selection = Tab.viwer
                             }, label: {
-                                //                                AsyncImage(url: URL(string: "https://images.pexels.com/photos/674010/pexels-photo-674010.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1")) { image in
                                 let components = imageUrl.components(separatedBy: "/")
                                 if let lastComponent = components.last {
                                     Text(lastComponent)
                                         .padding(.vertical, 5)
                                         .foregroundColor(.white)
                                 }
-                                
                             })
-                            
                         }
                     }
                 }
@@ -168,7 +128,7 @@ struct ContentView: View {
                 Label("Home", systemImage: "house")
             }.tag(Tab.home)
             VStack {
-                WebView(url: webViewURL, takeScreenshot: $takeScreenshot) { image in
+                CustomWebView(url: webViewURL, takeScreenshot: $takeScreenshot) { image in
                     DispatchQueue.main.async {
                         if let validImage = image {
                             self.capturedImage = validImage
@@ -223,8 +183,7 @@ struct ContentView: View {
     }
 }
 
-
-struct WebView: UIViewRepresentable {
+struct CustomWebView: UIViewRepresentable {
     var url: URL
     @Binding var takeScreenshot: Bool
     var onScreenshotCaptured: (UIImage?) -> Void
@@ -257,9 +216,10 @@ struct WebView: UIViewRepresentable {
     }
     
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
-        var parent: WebView
+        var parent: CustomWebView
+        @EnvironmentObject var dataStore: DataStore
         
-        init(_ parent: WebView) {
+        init(_ parent: CustomWebView) {
             self.parent = parent
         }
         
@@ -269,6 +229,11 @@ struct WebView: UIViewRepresentable {
                 let y = body["y"] as? Double ?? 0.0
                 let zoom = body["zoom"] as? Double ?? 1.0
                 print("Gaze coordinates: x=\(x), y=\(y), zoom=\(zoom)")
+                
+                // Store gaze data in DataStore
+                DispatchQueue.main.async {
+                    self.dataStore.gazeData.append(GazeData(x: x, y: y, zoom: zoom))
+                }
             }
         }
         
@@ -284,6 +249,3 @@ struct WebView: UIViewRepresentable {
         }
     }
 }
-//#Preview(windowStyle: .automatic) {
-//    ContentView()
-//}
