@@ -142,11 +142,13 @@ struct ContentView: View {
                     }
                     self.capturedImage = image!
                     self.showingCapturedImageSheet = true
-                }.toolbar {
+                }
+                .toolbar {
                     ToolbarItem(placement: .bottomOrnament) {
                         
                     }
-                }.ornament(visibility: .visible, attachmentAnchor: .scene(.bottom), contentAlignment: .center) {
+                }
+                .ornament(visibility: .visible, attachmentAnchor: .scene(.bottom), contentAlignment: .center) {
                     HStack {
                         Button(action: {
                             print("open window Action")
@@ -164,11 +166,14 @@ struct ContentView: View {
                     }
                 }
                 
-            }.glassBackgroundEffect()
-                .tabItem {
-                    Label("Viewer", systemImage: "eye")
-                }.tag(Tab.viwer)
-        }.sheet(isPresented: $showingCapturedImageSheet) {
+            }
+            .glassBackgroundEffect()
+            .tabItem {
+                Label("Viewer", systemImage: "eye")
+            }
+            .tag(Tab.viwer)
+        }
+        .sheet(isPresented: $showingCapturedImageSheet) {
             Button(action: {
                 self.showingCapturedImageSheet = false
             }, label: {
@@ -179,7 +184,7 @@ struct ContentView: View {
                 .resizable()
                 .scaledToFit()
         }
-        
+        .environmentObject(dataStore)  // Provide DataStore to the environment
     }
 }
 
@@ -188,8 +193,10 @@ struct CustomWebView: UIViewRepresentable {
     @Binding var takeScreenshot: Bool
     var onScreenshotCaptured: (UIImage?) -> Void
     
+    @EnvironmentObject var dataStore: DataStore  // Access DataStore
+    
     func makeCoordinator() -> Coordinator {
-        Coordinator(self)
+        Coordinator(self, dataStore: dataStore)
     }
     
     func makeUIView(context: Context) -> WKWebView {
@@ -217,10 +224,11 @@ struct CustomWebView: UIViewRepresentable {
     
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var parent: CustomWebView
-        @EnvironmentObject var dataStore: DataStore
+        var dataStore: DataStore  // Store a reference to the DataStore
         
-        init(_ parent: CustomWebView) {
+        init(_ parent: CustomWebView, dataStore: DataStore) {
             self.parent = parent
+            self.dataStore = dataStore
         }
         
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
