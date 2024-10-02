@@ -1,0 +1,68 @@
+
+func continuousWakeWordDetection() {
+    // Cancel any previous recognition tasks
+    if recognitionTask != nil {
+        recognitionTask?.cancel()
+        recognitionTask = nil
+    }
+
+    // Configure the audio session
+    let audioSession = AVAudioSession.sharedInstance()
+    try? audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
+    try? audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+
+    // Create the recognition request
+    recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+
+    guard let recognitionRequest = recognitionRequest else {
+        fatalError("Unable to create recognition request")
+    }
+
+    // Create the input node from the audio engine
+    let inputNode = audioEngine.inputNode
+    recognitionRequest.shouldReportPartialResults = true
+
+    // Start the speech recognition task to continuously listen
+    recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest) { result, error in
+        if let result = result {
+            // Get the transcribed text
+            let transcription = result.bestTranscription.formattedString
+            print("Recognized text: \(transcription)")
+            
+            // Check if the wake word "Hey Webview" is detected
+            if transcription.lowercased().contains("hey webview") {
+                print("Wake word detected!")
+                
+                // Stop continuous listening
+                self.audioEngine.stop()
+                inputNode.removeTap(onBus: 0)
+                self.recognitionRequest = nil
+                self.recognitionTask = nil
+                
+                // Start actual command listening or other actions
+                self.microphoneRecordAndTranslate()
+            }
+        }
+
+        if error != nil || result?.isFinal == true {
+            // Restart continuous recognition after error or final result
+            self.audioEngine.stop()
+            inputNode.removeTap(onBus: 0)
+            self.recognitionRequest = nil
+            self.recognitionTask = nil
+
+            // Restart listening for wake word
+            self.continuousWakeWordDetection()
+        }
+    }
+
+    // Install a tap on the audio engine's input node to capture audio
+    let recordingFormat = inputNode.outputFormat(forBus: 0)
+    inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, when in
+        recognitionRequest.append(buffer)
+    }
+
+    // Start the audio engine
+    try? audioEngine.start()
+    print("Listening for wake word...")
+}
