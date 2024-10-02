@@ -1,0 +1,57 @@
+*** Terminating app due to uncaught exception 'com.apple.coreaudio.avfaudio', reason: 'required condition is false: nullptr == Tap()'
+*** First throw call stack:
+(
+	0   CoreFoundation                      0x00000001804bceec __exceptionPreprocess + 172
+	1   libobjc.A.dylib                     0x0000000180087068 objc_exception_throw + 56
+	2   CoreFoundation                      0x00000001804bcd90 +[NSException raise:format:] + 0
+	3   AVFAudio                            0x00000001c7c88d30 _Z19AVAE_RaiseExceptionP8NSStringz + 48
+	4   AVFAudio                            0x00000001c7ce0890 _ZN17AUGraphNodeBaseV318CreateRecordingTapEmjP13AVAudioFormatU13block_pointerFvP16AVAudioPCMBufferP11AVAudioTimeE + 464
+	5   AVFAudio                            0x00000001c7d503f4 -[AVAudioNode installTapOnBus:bufferSize:format:block:] + 1324
+	6   Webview                             0x0000000104bcb690 $s7Webview11ContentViewV28microphoneRecordAndTranslateyyF + 2920
+	7   Webview                             0x0000000104bcab10 $s7Webview11ContentViewV4bodyQrvg7SwiftUI05TupleC0VyAE6VStackVyAE0C0PAEE5sheet11isPresented9onDismiss7contentQrAE7BindingVySbG_yycSgqd__yctAeJRd__lFQOyAE03TabC0VyAA0P0OAGyAkEE3tagyQrqd__SHRd__lFQ	8   SwiftUI                             0x00000001ce53b2b8 OUTLINED_FUNCTION_15 + 668
+	9   SwiftUI                             0x00000001cdb9c124 OUTLINED_FUNCTION_13 + 9036
+	10  SwiftUI                             0x00000001cdb9f180 OUTLINED_FUNCTION_13 + 21416
+	11  SwiftUI                             0x00000001cdb9f0d4 OUTLINED_FUNCTION_13 + 21244
+	12  SwiftUI                             0x00000001ce1e93a8 OUTLINED_FUNCTION_1 + 4608
+	13  SwiftUI                             0x00000001cd2f6d98 OUTLINED_FUNCTION_45 + 2073244
+	14  SwiftUI                             0x00000001cdd54248 OUTLINED_FUNCTION_52 + 32
+	15  SwiftUI                             0x00000001cdd54264 OUTLINED_FUNCTION_52 + 60
+	16  SwiftUI                             0x00000001cdd54248 OUTLINED_FUNCTION_52 + 32
+	17  SwiftUI                             0x00000001ce52788c OUTLINED_FUNCTION_14 + 2496
+	18  SwiftUI                             0x00000001ce527bac OUTLINED_FUNCTION_14 + 3296
+	19  SwiftUI                             0x00000001ce6ac528 OUTLINED_FUNCTION_10 + 144
+	20  SwiftUI                             0x00000001ce478b20 OUTLINED_FUNCTION_20 + 12252
+	21  SwiftUI                             0x00000001ce476cac OUTLINED_FUNCTION_20 + 4456
+	22  SwiftUI                             0x00000001ce476de0 OUTLINED_FUNCTION_20 + 4764
+	23  UIKitCore                           0x0000000184f15660 -[UIGestureRecognizer _componentsEnded:withEvent:] + 140
+	24  UIKitCore                           0x000000018546397c -[UITouchesEvent _sendEventToGestureRecognizer:] + 556
+	25  UIKitCore                           0x0000000184f0928c -[UIGestureEnvironment _deliverEvent:toGestureRecognizers:usingBlock:] + 160
+	26  UIKitCore                           0x0000000184f0907c -[UIGestureEnvironment _updateForEvent:window:] + 156
+	27  UIKitCore                           0x0000000185416a58 -[UIWindow sendEvent:] + 3088
+	28  MRUIKit                             0x00000001dd5cea28 -[UIWindow(MRUIKit) _mrui_sendEvent:] + 60
+	29  UIKitCore                           0x00000001853f6358 -[UIApplication sendEvent:] + 580
+	30  MRUIKit                             0x00000001dd5f67e0 -[UIApplication(MRUIKit) mrui_sendEvent:] + 292
+	31  UIKitCore                           0x000000018547dbdc __dispatchPreprocessedEventFromEventQueue + 1688
+	32  UIKitCore                           0x0000000185480a88 __processEventQueue + 5608
+	33  UIKitCore                           0x0000000185479044 updateCycleEntry + 156
+	34  UIKitCore                           0x00000001849d3054 _UIUpdateSequenceRun + 76
+	35  UIKitCore                           0x000000018531b1a4 schedulerStepScheduledMainSection + 168
+	36  UIKitCore                           0x000000018531a704 runloopSourceCallback + 80
+	37  CoreFoundation                      0x000000018041d928 __CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE0_PERFORM_FUNCTION__ + 24
+	38  CoreFoundation                      0x000000018041d870 __CFRunLoopDoSource0 + 172
+	39  CoreFoundation                      0x000000018041cfe0 __CFRunLoopDoSources0 + 232
+	40  CoreFoundation                      0x00000001804176f8 __CFRunLoopRun + 768
+	41  CoreFoundation                      0x0000000180416ff4 CFRunLoopRunSpecific + 572
+	42  GraphicsServices                    0x000000018efdeb44 GSEventRunModal + 160
+	43  UIKitCore                           0x00000001853dcad8 -[UIApplication _run] + 868
+	44  UIKitCore                           0x00000001853e0794 UIApplicationMain + 124
+	45  SwiftUI                             0x00000001cdd59454 OUTLINED_FUNCTION_69 + 512
+	46  SwiftUI                             0x00000001cdd592ec OUTLINED_FUNCTION_69 + 152
+	47  SwiftUI                             0x00000001cd99f940 OUTLINED_FUNCTION_0 + 108
+	48  Webview                             0x0000000104be9d0c $s7Webview0A3AppV5$mainyyFZ + 40
+	49  Webview                             0x0000000104bea26c main + 12
+	50  dyld                                0x000000010536d544 start_sim + 20
+	51  ???                                 0x0000000104e6a0e0 0x0 + 4377190624
+	52  ???                                 0x6d27800000000000 0x0 + 7865396011714215936
+)
+libc++abi: terminating due to uncaught exception of type NSException
