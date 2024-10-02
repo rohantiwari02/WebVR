@@ -2,6 +2,7 @@ import SwiftUI
 import RealityKit
 import RealityKitContent
 import WebKit
+import Speech // Import Speech framework for speech recognition
 
 enum Tab {
     case viwer
@@ -21,30 +22,31 @@ struct ContentView: View {
     @State var searchResult: Array<String> = Array()
     @State var displayImages: Array<String> = Array()
     @State var folderToBeDisplayed: Array<String> = ["brain/GBM","brain/LGG","breast/BRCA","colon/COAD", "liver/CHOL", "liver/LIHC", "lung/LUAD", "lung/LUSC"]
-    @EnvironmentObject var dataStore: DataStore
+    @State private var sphereEntity: Entity?
+    
+    // Speech recognition-related variables
+    @State private var audioEngine = AVAudioEngine()
+    @State private var speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))!
+    @State private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+    @State private var recognitionTask: SFSpeechRecognitionTask?
     
     func fetchStringsFromAPI(apiURL: String, completion: @escaping ([String]?, Error?) -> Void) {
-        // Ensure the URL is valid
         guard let url = URL(string: apiURL) else {
             completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"]))
             return
         }
         
-        // Create a URLSession data task
         let task = URLSession.shared.dataTask(with: url) { data, response, error in
-            // Handle the error scenario
             if let error = error {
                 completion(nil, error)
                 return
             }
             
-            // Ensure the data is not nil
             guard let data = data else {
                 completion(nil, NSError(domain: "", code: -2, userInfo: [NSLocalizedDescriptionKey: "No data received"]))
                 return
             }
             
-            // Attempt to decode the data into an array of strings
             do {
                 let strings = try JSONDecoder().decode([String].self, from: data)
                 completion(strings, nil)
@@ -53,12 +55,11 @@ struct ContentView: View {
             }
         }
         
-        // Start the network request
         task.resume()
     }
     
     func getsearch() {
-        let apiURL = rootIP + "/search" + webViewURL.path
+        let apiURL = rootIP+"/search" + webViewURL.path
         print(apiURL)
         openWindow(id: "SecondWindow")
         fetchStringsFromAPI(apiURL: apiURL) { strings, error in
@@ -74,7 +75,7 @@ struct ContentView: View {
     }
     
     func getDisplayImages(path: String) {
-        let apiURL = rootIP + "/files/" + path
+        let apiURL = rootIP+"/files/"+path
         print(apiURL)
         fetchStringsFromAPI(apiURL: apiURL) { strings, error in
             if let error = error {
@@ -89,171 +90,244 @@ struct ContentView: View {
     }
     
     var body: some View {
-        TabView(selection: $selection) {
-            GeometryReader { geometry in
-                HStack(spacing: 0) {
-                    // Left side (25%)
-                    List {
-                        ForEach(folderToBeDisplayed, id: \.self) { item in
-                            Button(action: {
-                                getDisplayImages(path: item)
-                            }, label: {
-                                Text(item)
-                            })
-                        }
-                    }
-                    .padding(.all)
-                    .frame(width: geometry.size.width * 0.25)
-                    .background(Color.gray)
-                    // Right side (75%)
-                    List {
-                        ForEach(displayImages, id: \.self) { imageUrl in
-                            Button(action: {
-                                self.webViewURL = URL(string: "\(rootIP)\(imageUrl)")!
-                                self.selection = Tab.viwer
-                            }, label: {
-                                let components = imageUrl.components(separatedBy: "/")
-                                if let lastComponent = components.last {
-                                    Text(lastComponent)
-                                        .padding(.vertical, 5)
-                                        .foregroundColor(.white)
-                                }
-                            })
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-            .tabItem {
-                Label("Home", systemImage: "house")
-            }.tag(Tab.home)
+        ZStack {
             VStack {
-                CustomWebView(url: webViewURL, takeScreenshot: $takeScreenshot) { image in
-                    DispatchQueue.main.async {
-                        if let validImage = image {
-                            self.capturedImage = validImage
-                            print("Image captured ", validImage)
-                            
-                            // Save the image to the Photos album
-                            UIImageWriteToSavedPhotosAlbum(validImage, nil, nil, nil)
-                            
+                TabView(selection: $selection) {
+                    GeometryReader { geometry in
+                        HStack(spacing: 0) {
+                            // Left side (25%)
+                            List {
+                                ForEach(folderToBeDisplayed, id: \.self) { item in
+                                    Button(action: {
+                                        getDisplayImages(path: item)
+                                    }, label: {
+                                        Text(item)
+                                    })
+                                }
+                            }
+                            .padding(.all)
+                            .frame(width: geometry.size.width * 0.25)
+                            .background(Color.gray)
+                            // Right side (75%)
+                            List {
+                                ForEach(displayImages, id: \.self) { imageUrl in
+                                    Button(action: {
+                                        self.webViewURL = URL(string: "\(rootIP)\(imageUrl)")!
+                                        self.selection = Tab.viwer
+                                    }, label: {
+                                        let components = imageUrl.components(separatedBy: "/")
+                                        if let lastComponent = components.last {
+                                            Text(lastComponent)
+                                                .padding(.vertical, 5)
+                                                .foregroundColor(.white)
+                                        }
+                                    })
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    .tabItem {
+                        Label("Home", systemImage: "house")
+                    }.tag(Tab.home)
+                    
+                    VStack {
+                        WebView(url: webViewURL, takeScreenshot: $takeScreenshot) { image in
+                            DispatchQueue.main.async {
+                                if let validImage = image {
+                                    self.capturedImage = validImage
+                                    UIImageWriteToSavedPhotosAlbum(validImage, nil, nil, nil)
+                                    self.showingCapturedImageSheet = true
+                                }
+                            }
+                            self.capturedImage = image!
                             self.showingCapturedImageSheet = true
                         }
-                    }
-                    self.capturedImage = image!
-                    self.showingCapturedImageSheet = true
-                }
-                .toolbar {
-                    ToolbarItem(placement: .bottomOrnament) {
+                        .toolbar {
+                            ToolbarItem(placement: .bottomOrnament) { }
+                        }
+                        .ornament(visibility: .visible, attachmentAnchor: .scene(.bottom), contentAlignment: .center) {
+                            HStack {
+                                Button(action: {
+                                    getsearch()
+                                }) {
+                                    Label("", systemImage: "magnifyingglass")
+                                }
+                                .padding(.top, 50)
+                                
+                                Button(action: {
+                                    self.takeScreenshot = true
+                                }) {
+                                    Label("", systemImage: "camera.viewfinder")
+                                }
+                                .padding(.top, 50)
+                                
+                                Button(action: {
+                                    self.moveSphereRight()
+                                }) {
+                                    Label("", systemImage: "arrow.right")
+                                }
+                                .padding(.top, 50)
+                                
+                                Button(action: {
+                                    self.microphoneRecordAndTranslate()
+                                }) {
+                                    Label("Record", systemImage: "mic.fill")
+                                }
+                                .padding(.top, 50)
+                            }
+                        }
                         
                     }
+                    .glassBackgroundEffect()
+                    .tabItem {
+                        Label("Viewer", systemImage: "eye")
+                    }
+                    .tag(Tab.viwer)
                 }
-                .ornament(visibility: .visible, attachmentAnchor: .scene(.bottom), contentAlignment: .center) {
-                    HStack {
-                        Button(action: {
-                            print("open window Action")
-                            getsearch()
-                        }) {
-                            Label("", systemImage: "magnifyingglass")
-                        }
-                        .padding(.top, 50)
-                        Button(action: {
-                            self.takeScreenshot = true
-                        }) {
-                            Label("", systemImage: "camera.viewfinder")
-                        }
-                        .padding(.top, 50)
+                .sheet(isPresented: $showingCapturedImageSheet) {
+                    Button(action: {
+                        self.showingCapturedImageSheet = false
+                    }, label: {
+                        Text("Close")
+                    })
+                    Image(uiImage: self.capturedImage)
+                        .resizable()
+                        .scaledToFit()
+                }
+            }
+            
+            // RealityKit content, with disabled hit-testing
+            RealityView { content in
+                if let scene = try? await Entity(named: "Immersive", in: realityKitContentBundle) {
+                    content.add(scene)
+                    
+                    if let sphere = scene.findEntity(named: "pathvis") {
+                        print("setting sphere to local var completed")
+                        sphereEntity = sphere
                     }
                 }
+            }
+            .edgesIgnoringSafeArea(.all)
+            .frame(height: 0)  // Keep the RealityView out of sight if you don't need it right now
+            .allowsHitTesting(false)  // Disable hit-testing for RealityView
+        }
+        .edgesIgnoringSafeArea(.all)
+        .onAppear {
+            // Request permission for microphone and speech recognition
+            requestPermissions()
+        }
+    }
+    
+    func requestPermissions() {
+        // Request microphone and speech recognition permissions
+        SFSpeechRecognizer.requestAuthorization { authStatus in
+            switch authStatus {
+            case .authorized:
+                print("Speech recognition authorized")
+            case .denied:
+                print("Speech recognition denied")
+            case .restricted:
+                print("Speech recognition restricted")
+            case .notDetermined:
+                print("Speech recognition not determined")
+            @unknown default:
+                fatalError("Unknown speech recognition status")
+            }
+        }
+        
+        AVAudioSession.sharedInstance().requestRecordPermission { granted in
+            if granted {
+                print("Microphone permission granted")
+            } else {
+                print("Microphone permission denied")
+            }
+        }
+    }
+    
+    // Method to record audio and transcribe it
+    func microphoneRecordAndTranslate() {
+    // Make sure there isn't a current recognition task running
+        if recognitionTask != nil {
+            recognitionTask?.cancel()
+            recognitionTask = nil
+        }
+
+        // Configure the audio session
+        let audioSession = AVAudioSession.sharedInstance()
+        try? audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
+        try? audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+    
+        // Create the recognition request
+        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+    
+        guard let recognitionRequest = recognitionRequest else {
+            fatalError("Unable to create recognition request")
+        }
+    
+        // Create the input node from the audio engine
+        let inputNode = audioEngine.inputNode
+        recognitionRequest.shouldReportPartialResults = true
+    
+        // Timer to handle silence
+        var silenceTimer: Timer?
+        
+        // Start the speech recognition task
+        recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest) { result, error in
+            if let result = result {
+                // Print the transcribed text
+                let transcription = result.bestTranscription.formattedString
+                print("Transcribed text: \(transcription)")
                 
+                // Reset the timer every time there is new input
+                silenceTimer?.invalidate() // Invalidate the previous timer
+                silenceTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+                    // Stop recognition if there's no input for 3 seconds
+                    self.stopRecognition(inputNode: inputNode)
+                    print("Stopped recording due to inactivity")
+                }
             }
-            .glassBackgroundEffect()
-            .tabItem {
-                Label("Viewer", systemImage: "eye")
+    
+            if error != nil || result?.isFinal == true {
+                // Stop the audio engine and recognition task when complete
+                self.stopRecognition(inputNode: inputNode)
             }
-            .tag(Tab.viwer)
         }
-        .sheet(isPresented: $showingCapturedImageSheet) {
-            Button(action: {
-                self.showingCapturedImageSheet = false
-            }, label: {
-                Text("close")
-            })
-            // This is the sheet presentation of the captured image
-            Image(uiImage: self.capturedImage)
-                .resizable()
-                .scaledToFit()
+    
+        // Install a tap on the audio engine's input node to capture audio
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, when in
+            recognitionRequest.append(buffer)
         }
-        .environmentObject(dataStore)  // Provide DataStore to the environment
+    
+        // Start the audio engine
+        try? audioEngine.start()
+        print("Recording started")
+    }
+
+    func stopRecognition(inputNode: AVAudioInputNode) {
+        self.audioEngine.stop()
+        inputNode.removeTap(onBus: 0)
+        self.recognitionRequest = nil
+        self.recognitionTask = nil
+    }
+
+    
+    func moveSphereRight() {
+        guard let sphere = sphereEntity else {
+            print("Sphere entity not found")
+            return
+        }
+        
+        // Define the rightward movement animation
+        let moveRight = Transform(translation: SIMD3(x: 0.01, y: 0, z: 0)) // Move 1 unit to the right
+        let duration: TimeInterval = 2.0  // Duration of the movement
+        
+        // Animate the sphere to the right over the specified duration
+        sphere.move(to: moveRight, relativeTo: sphere.parent, duration: duration, timingFunction: .linear)
     }
 }
 
-struct CustomWebView: UIViewRepresentable {
-    var url: URL
-    @Binding var takeScreenshot: Bool
-    var onScreenshotCaptured: (UIImage?) -> Void
-    
-    @EnvironmentObject var dataStore: DataStore  // Access DataStore
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self, dataStore: dataStore)
-    }
-    
-    func makeUIView(context: Context) -> WKWebView {
-        let webView = WKWebView()
-        let contentController = webView.configuration.userContentController
-        contentController.add(context.coordinator, name: "gazeHandler")
-        webView.navigationDelegate = context.coordinator
-        let request = URLRequest(url: url)
-        webView.load(request)
-        return webView
-    }
-    
-    func updateUIView(_ uiView: WKWebView, context: Context) {
-        if takeScreenshot {
-            uiView.takeSnapshot(with: nil, completionHandler: { image, error in
-                if let error = error {
-                    print("Error taking snapshot: \(error)")
-                } else {
-                    onScreenshotCaptured(image)
-                }
-            })
-            takeScreenshot = false
-        }
-    }
-    
-    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
-        var parent: CustomWebView
-        var dataStore: DataStore  // Store a reference to the DataStore
-        
-        init(_ parent: CustomWebView, dataStore: DataStore) {
-            self.parent = parent
-            self.dataStore = dataStore
-        }
-        
-        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            if message.name == "gazeHandler", let body = message.body as? [String: Any] {
-                let x = body["x"] as? Double ?? 0.0
-                let y = body["y"] as? Double ?? 0.0
-                let zoom = body["zoom"] as? Double ?? 1.0
-                print("Gaze coordinates: x=\(x), y=\(y), zoom=\(zoom)")
-                
-                // Store gaze data in DataStore
-                DispatchQueue.main.async {
-                    self.dataStore.gazeData.append(GazeData(x: x, y: y, zoom: zoom))
-                }
-            }
-        }
-        
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            // Add any JavaScript you want to inject into the webpage here
-            let js = """
-            window.addEventListener('mousemove', function(event) {
-                var zoom = window.viewer.viewport.getZoom();
-                window.webkit.messageHandlers.gazeHandler.postMessage({x: event.clientX, y: event.clientY, zoom: zoom});
-            });
-            """
-            webView.evaluateJavaScript(js, completionHandler: nil)
-        }
-    }
+#Preview(windowStyle: .automatic) {
+    ContentView(results: .constant(["a","b"]))
 }
