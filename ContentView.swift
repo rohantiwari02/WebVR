@@ -247,12 +247,22 @@ struct ContentView: View {
     
     // Method to record audio and transcribe it
     func microphoneRecordAndTranslate() {
-    // Make sure there isn't a current recognition task running
+        // If the audio engine is already running, stop it
+        if audioEngine.isRunning {
+            print("Stopping audio engine...")
+            audioEngine.stop()
+            audioEngine.inputNode.removeTap(onBus: 0)
+            recognitionTask?.cancel()
+            recognitionTask = nil
+            return
+        }
+    
+        // If there's an existing recognition task, cancel it
         if recognitionTask != nil {
             recognitionTask?.cancel()
             recognitionTask = nil
         }
-
+    
         // Configure the audio session
         let audioSession = AVAudioSession.sharedInstance()
         try? audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
@@ -269,28 +279,20 @@ struct ContentView: View {
         let inputNode = audioEngine.inputNode
         recognitionRequest.shouldReportPartialResults = true
     
-        // Timer to handle silence
-        var silenceTimer: Timer?
-        
         // Start the speech recognition task
         recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest) { result, error in
             if let result = result {
                 // Print the transcribed text
                 let transcription = result.bestTranscription.formattedString
                 print("Transcribed text: \(transcription)")
-                
-                // Reset the timer every time there is new input
-                silenceTimer?.invalidate() // Invalidate the previous timer
-                silenceTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
-                    // Stop recognition if there's no input for 3 seconds
-                    self.stopRecognition(inputNode: inputNode)
-                    print("Stopped recording due to inactivity")
-                }
             }
     
             if error != nil || result?.isFinal == true {
                 // Stop the audio engine and recognition task when complete
-                self.stopRecognition(inputNode: inputNode)
+                self.audioEngine.stop()
+                inputNode.removeTap(onBus: 0)
+                self.recognitionRequest = nil
+                self.recognitionTask = nil
             }
         }
     
@@ -304,6 +306,7 @@ struct ContentView: View {
         try? audioEngine.start()
         print("Recording started")
     }
+
 
     func stopRecognition(inputNode: AVAudioInputNode) {
         self.audioEngine.stop()
